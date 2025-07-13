@@ -1,4 +1,4 @@
-# backend/core/rag_cag_pipeline.py
+# src/core/rag_cag_pipeline.py
 from langchain_community.llms import Ollama
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
@@ -8,10 +8,9 @@ from langchain.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from core.config import settings
+from src.core.config import settings
 import requests
 import os
-import shutil
 
 class RAGCAGPipeline:
     def __init__(self):
@@ -24,15 +23,14 @@ class RAGCAGPipeline:
         self.chroma_db_path = settings.CHROMADB_PATH
 
     async def initialize(self):
-        """Initializes Ollama connection, embeddings, and ChromaDB."""
+        """Initializes Ollama connection. Embeddings and ChromaDB will be lazily initialized."""
         await self._test_ollama_connection()
         if not self.ollama_connected:
             raise ConnectionError("Failed to connect to Ollama. Please ensure it's running and the model is pulled.")
 
+        # Only initialize LLM here. Embeddings and Vectorstore will be initialized on demand.
         self.llm = Ollama(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL, temperature=0.1)
-        self.embeddings = HuggingFaceEmbeddings(model_name=settings.EMBEDDING_MODEL_NAME)
-        self._init_chroma()
-        self._setup_qa_chain()
+
 
     async def _test_ollama_connection(self):
         """Tests connection to the Ollama instance."""
@@ -43,13 +41,12 @@ class RAGCAGPipeline:
             self.ollama_connected = True
             print(f"Successfully connected to Ollama: {response.json()}")
 
-            # Check if the model is available
             model_list_response = requests.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=5)
             model_list_response.raise_for_status()
             models = [m['name'] for m in model_list_response.json().get('models', [])]
             if f"{settings.OLLAMA_MODEL}:latest" not in models and settings.OLLAMA_MODEL not in models:
                 print(f"WARNING: Model '{settings.OLLAMA_MODEL}' not found in Ollama. Please pull it using 'ollama pull {settings.OLLAMA_MODEL}'.")
-                self.ollama_connected = False # Treat as not connected if model is missing
+                self.ollama_connected = False
             else:
                 print(f"Model '{settings.OLLAMA_MODEL}' found in Ollama.")
 
@@ -63,83 +60,112 @@ class RAGCAGPipeline:
             print(f"ERROR: An error occurred while connecting to Ollama: {e}")
             self.ollama_connected = False
 
-    def _init_chroma(self):
-        """Initializes ChromaDB, creating it if it doesn't exist."""
-        # Check if the ChromaDB directory exists and has content
-        if os.path.exists(self.chroma_db_path) and os.listdir(self.chroma_db_path):
-            print(f"Loading existing ChromaDB from {self.chroma_db_path}")
-            self.vectorstore = Chroma(
-                persist_directory=self.chroma_db_path,
-                embedding_function=self.embeddings
-            )
-        else:
-            print(f"ChromaDB not found or empty at {self.chroma_db_path}. A new one will be created upon ingestion.")
-            # Create an empty persistent client for now, data will be added later
+    def _ensure_embeddings_and_vectorstore(self):
+        """Ensures embeddings and vectorstore are initialized. Called by methods that need them."""
+        if self.embeddings is None:
+            print(f"Initializing HuggingFaceEmbeddings with model: {settings.EMBEDDING_MODEL_NAME}")
+            self.embeddings = HuggingFaceEmbeddings(model_name=settings.EMBEDDING_MODEL_NAME)
+
+        if self.vectorstore is None:
+            print(f"Initializing ChromaDB client instance at {self.chroma_db_path}")
             self.vectorstore = Chroma(
                 embedding_function=self.embeddings,
                 persist_directory=self.chroma_db_path
             )
-            # Ensure the directory exists
             os.makedirs(self.chroma_db_path, exist_ok=True)
-        
-        self.vectorstore.persist() # Explicitly persist to ensure directory is set up
+            # No explicit persist() needed for Chroma 0.4.x+ on initial client creation
 
-    def is_chroma_initialized(self) -> bool:
-        """Checks if ChromaDB has any collections (i.e., data ingested)."""
-        # A more robust check might involve querying for collections
-        # For simplicity, we assume if the directory exists and has files, it's initialized.
-        return os.path.exists(self.chroma_db_path) and bool(os.listdir(self.chroma_db_path))
+    def is_chroma_initialized_and_populated(self) -> bool:
+        """Checks if ChromaDB client is initialized and contains documents."""
+        # Ensure client is initialized before checking population
+        self._ensure_embeddings_and_vectorstore()
+
+        try:
+            collection = self.vectorstore._client.get_or_create_collection(name="langchain")
+            if collection.count() > 0:
+                print(f"ChromaDB at {self.chroma_db_path} contains {collection.count()} documents.")
+                return True
+            else:
+                print(f"ChromaDB at {self.chroma_db_path} is initialized but appears empty.")
+                return False
+        except Exception as e:
+            print(f"Error checking ChromaDB population: {e}. Assuming empty for now.")
+            return False
+
 
     def ingest_data(self, data: list[dict], data_type: str):
         """
         Ingests data into ChromaDB.
         Assumes data is a list of dicts, and each dict will be converted to a Document.
         """
-        if not self.embeddings:
-            raise RuntimeError("Embeddings not initialized. Call initialize() first.")
-        if not self.vectorstore:
-            self._init_chroma() # Ensure vectorstore is ready
+        # Ensure embeddings and vectorstore are ready before proceeding
+        self._ensure_embeddings_and_vectorstore()
 
         documents = []
+        documents = []
         for item in data:
+            content = "" # Initialize content as a string
+            metadata = {}
+
             if data_type == "patient_records":
-                content = f"Patient ID: {item.get('id')}\nName: {item.get('name')}\nAge: {item.get('age')}\nDiagnosis: {item.get('diagnosis')}\nMedications: {item.get('medications')}\nHistory: {item.get('history')}\nNotes: {item.get('notes')}"
+                # Ensure all parts of content are strings
+                content = (
+                    f"Patient ID: {item.get('id', 'N/A')}\n"
+                    f"Name: {item.get('name', 'N/A')}\n"
+                    f"Age: {item.get('age', 'N/A')}\n"
+                    f"Diagnosis: {item.get('diagnosis', 'N/A')}\n"
+                    f"Medications: {item.get('medications', 'N/A')}\n" # This could be a list/dict
+                    f"History: {item.get('history', 'N/A')}\n"
+                    f"Notes: {item.get('notes', 'N/A')}"
+                )
                 metadata = {"source": "patient_records", "id": item.get('id')}
             elif data_type == "treatment_guides":
-                content = f"Condition: {item.get('condition')}\nGuide: {item.get('guide')}"
+                content = (
+                    f"Condition: {item.get('condition', 'N/A')}\n"
+                    f"Guide: {item.get('guide', 'N/A')}"
+                )
                 metadata = {"source": "treatment_guides", "condition": item.get('condition')}
             elif data_type == "drug_interactions":
-                content = f"Drug 1: {item.get('drug1')}\nDrug 2: {item.get('drug2')}\nInteraction: {item.get('interaction')}"
+                content = (
+                    f"Drug 1: {item.get('drug1', 'N/A')}\n"
+                    f"Drug 2: {item.get('drug2', 'N/A')}\n"
+                    f"Interaction: {item.get('interaction', 'N/A')}" # This could be a list/dict
+                )
                 metadata = {"source": "drug_interactions", "drug1": item.get('drug1'), "drug2": item.get('drug2')}
             else:
                 continue # Skip unknown data types
 
+            # Ensure content is always a string before creating Document
+            if not isinstance(content, str):
+                print(f"Warning: Document content for {data_type} is not a string. Converting. Content: {content}")
+                content = str(content) # Force conversion to string
+
             documents.append(Document(page_content=content, metadata=metadata))
 
         if documents:
-            # Using a text splitter for potentially large documents
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
             split_documents = text_splitter.split_documents(documents)
-            
+
             print(f"Adding {len(split_documents)} documents from {data_type} to ChromaDB...")
             self.vectorstore.add_documents(split_documents)
-            self.vectorstore.persist()
+            # No explicit persist() needed for Chroma 0.4.x+ for adding documents
             print(f"Successfully ingested {len(split_documents)} documents for {data_type}.")
         else:
             print(f"No documents to ingest for {data_type}.")
 
     def _setup_qa_chain(self):
         """Sets up the LangChain QA chain for RAG and prepares for CAG."""
-        if not self.vectorstore or not self.llm:
-            raise RuntimeError("Vectorstore or LLM not initialized. Call initialize() first.")
+        # Ensure everything needed for the QA chain is initialized and populated
+        self._ensure_embeddings_and_vectorstore()
+        if not self.llm:
+             raise RuntimeError("LLM not initialized when trying to setup QA chain.")
+        
+        # This check is crucial: only set up if vectorstore has docs to retrieve from.
+        if not self.is_chroma_initialized_and_populated():
+            raise RuntimeError("Cannot setup QA chain: Vectorstore is not populated with documents.")
 
         self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": 5})
 
-        # Prompt for RAG/CAG
-        # The prompt is designed to instruct the LLM to use the provided context
-        # and to act as a healthcare assistant.
-        # It encourages comprehensive and accurate responses,
-        # which is key for both RAG (initial retrieval) and CAG (follow-up context).
         prompt_template = """
         You are an AI-powered healthcare assistant for doctors. Your goal is to provide comprehensive, accurate, and relevant medical information based on the provided context.
         The context includes patient records, treatment guides, and drug interaction information.
@@ -158,44 +184,36 @@ class RAGCAGPipeline:
             template=prompt_template, input_variables=["context", "question"]
         )
 
-        # RAG part: Retrieve and combine with question
-        # For CAG, we rely on the LLM's long context window.
-        # Subsequent queries will ideally bring in new relevant docs via retriever,
-        # and the LLM itself will manage the accumulating context of the conversation.
         self.qa_chain = (
             {"context": self.retriever, "question": RunnablePassthrough()}
             | PROMPT
             | self.llm
             | StrOutputParser()
         )
+        print("QA chain setup complete.")
 
     async def process_query(self, query: str) -> tuple[str, list[dict]]:
         """
         Processes a natural language query using the RAG/CAG pipeline.
         Returns the generated response and the source documents.
         """
+        # Ensure QA chain is set up before processing queries
         if not self.qa_chain:
-            raise RuntimeError("QA chain not initialized. Call initialize() first.")
+            # If QA chain is not set up, try to set it up now
+            try:
+                self._setup_qa_chain()
+            except RuntimeError as e:
+                # If setup still fails, return an informative message
+                return f"The knowledge base is not yet fully ready for queries: {e}", []
 
-        # LangChain's RetrievalQA or custom chain can handle context.
-        # For follow-up questions, the entire conversation history (or a summarized version)
-        # combined with new retrievals would be passed to the LLM.
-        # In this basic setup, the `retriever` fetches new context for each query,
-        # and the prompt implicitly expects the LLM to manage its internal conversation state
-        # if the LLM itself supports long context.
-        # A more advanced CAG would involve explicit conversation history management and summarization.
-
-        # To get source documents, we need to manually run retriever and then the chain
         retrieved_docs = self.retriever.invoke(query)
         context = "\n\n".join([doc.page_content for doc in retrieved_docs])
-        
-        # Prepare source documents for the frontend
+
         source_docs_for_frontend = [
             {"content": doc.page_content, "metadata": doc.metadata}
             for doc in retrieved_docs
         ]
 
-        # Use the LangChain Runnable for streamlined execution
         response = self.qa_chain.invoke({"context": context, "question": query})
 
         return response, source_docs_for_frontend
