@@ -62,7 +62,18 @@ graph TD
 ## Features
 ### Core Features
 - Retrieval-Augmented Generation (RAG) Pipeline: The application uses a RAG pipeline to generate informed responses by first retrieving relevant information from its knowledge base and then using an LLM to formulate an answer based on that context.
-- 
+- Cache-Augmented Generation (CAG) Pipeline: Implemented using `functools.lru_cache`, this feature caches recent query results to enable faster responses for identical subsequent queries, bypassing redundant retrieval and LLM interface. The cache is automatically cleared when the application is re-initialized or when new data is ingested, ensuring data freshness.
+- Ollam Integration: Utilizes Ollama as the backend for serving large language models (LLMs) allowing for flexible local or self-hosted LLM deployment.
+- HuggingFace Embeddings: Employs `HuggingFaceEmbeddings` to convert text data into numerical vectors, enabling efficient semantic search and retrieval.
+- ChromaDB Vector Store: Uses ChromaDB as a persistent vector database to store and efficiently search through embedded medical documents.
+
+### Data Management & Knowledge Base
+- Multi-Source Data Ingestion: Can ingest data from different healthcare domains, including:
+	- Drug Interactions: Specific details about interactions between different medications, including risks and management.
+	- Patient Records: Detailed patient information like id, name, age, diagnosis, medications, history, and notes
+	- Treatment Guides: Comprehensive information on managing various medical conditions.
+- Document Chunking: 
+- Persistent Knowledge Base:
 
 ## Column Profiles
 ### `drug_interactions.json`
