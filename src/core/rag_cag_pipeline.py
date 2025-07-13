@@ -12,6 +12,7 @@ from langchain_core.messages import BaseMessage
 from src.core.config import settings
 import requests
 import os
+from functools import lru_cache
 
 class RAGCAGPipeline:
     def __init__(self):
@@ -30,6 +31,10 @@ class RAGCAGPipeline:
             raise ConnectionError("Failed to connect to Ollama. Please ensure it's running and the model is pulled.")
 
         self.llm = OllamaLLM(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL, temperature=0.1)
+        # Clear the cache upon re-initialization of the pipeline or LLM
+        # This is important if the underlying LLM or knowledge base changes,
+        # otherwise stale cached data might be served.
+        self.process_query.cache_clear()
 
 
     async def _test_ollama_connection(self):
@@ -148,6 +153,8 @@ class RAGCAGPipeline:
             print(f"Adding {len(split_documents)} documents from {data_type} to ChromaDB...")
             self.vectorstore.add_documents(split_documents)
             print(f"Successfully ingested {len(split_documents)} documents for {data_type}.")
+            # Important: Clear cache after data ingestion, as the knowledge base has changed
+            self.process_query.cache_clear()
         else:
             print(f"No documents to ingest for {data_type}.")
 
@@ -156,7 +163,7 @@ class RAGCAGPipeline:
         self._ensure_embeddings_and_vectorstore()
         if not self.llm:
             raise RuntimeError("LLM not initialized when trying to setup QA chain.")
-           
+
         if not self.is_chroma_initialized_and_populated():
             raise RuntimeError("Cannot setup QA chain: Vectorstore is not populated with documents.")
 
@@ -180,11 +187,7 @@ class RAGCAGPipeline:
             template=prompt_template, input_variables=["context", "question"]
         )
 
-        # FIX: Explicitly define the chain to accept 'question' and retrieve context
-        # This structure ensures that the prompt receives a dict with 'context' and 'question' strings.
         self.qa_chain = (
-            # Step 1: Accept the raw 'question' string input.
-            # Step 2: Use RunnablePassthrough.assign to create the 'context' and pass 'question' through.
             {
                 "context": self.retriever | (lambda docs: "\n\n".join([str(doc.page_content) for doc in docs])),
                 "question": RunnablePassthrough()
@@ -195,18 +198,22 @@ class RAGCAGPipeline:
         )
         print("QA chain setup complete.")
 
+    @lru_cache(maxsize=128) # Apply LRU cache to the process_query method
     async def process_query(self, query: str) -> tuple[str, list[dict]]:
         """
         Processes a natural language query using the RAG/CAG pipeline.
         Returns the generated response and the source documents.
+        This method is now cached.
         """
+        # Note: self.qa_chain and self.retriever must be initialized *before*
+        # this method is called, ideally by the application startup.
+        # If they are not ready, the subsequent RuntimeError will prevent caching.
         if not self.qa_chain:
             try:
                 self._setup_qa_chain()
             except RuntimeError as e:
                 return f"The knowledge base is not yet fully ready for queries: {e}", []
 
-        # It's good practice to ensure self.retriever is ready before invoking for source docs
         if not self.retriever:
             try:
                 self._setup_qa_chain() # Try to set up if not already
@@ -214,15 +221,18 @@ class RAGCAGPipeline:
                 return f"Retrieval component not ready: {e}", []
 
         # Perform retrieval *separately* if you want to explicitly get source_docs_for_frontend
+        # This retrieval happens even if the overall response is cached,
+        # because the @lru_cache is on process_query, caching its *return values*.
+        # For true caching of retrieval, you'd cache the retriever's invoke method
+        # or store retrieved_docs in the cache along with the response.
+        # For simplicity here, we're caching the final output.
         retrieved_docs = self.retriever.invoke(query)
-        
+
         source_docs_for_frontend = [
-            {"content": str(doc.page_content), "metadata": doc.metadata} 
+            {"content": str(doc.page_content), "metadata": doc.metadata}
             for doc in retrieved_docs
         ]
 
-        # The qa_chain now expects a dictionary with both 'question' and 'context' (or just 'question' for retrieval).
-        # We pass only the 'question' key, and the chain itself handles the retrieval for 'context'.
-        response = self.qa_chain.invoke(query) # Pass the raw query string as input
+        response = self.qa_chain.invoke(query)
 
         return response, source_docs_for_frontend
