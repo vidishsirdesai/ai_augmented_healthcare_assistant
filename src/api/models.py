@@ -1,4 +1,4 @@
-# backend/api/models.py
+# src/api/models.py
 from pydantic import BaseModel, Field
 
 class ChatQuery(BaseModel):
