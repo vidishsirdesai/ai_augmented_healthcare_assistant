@@ -1,13 +1,14 @@
 # src/core/rag_cag_pipeline.py
-from langchain_community.llms import Ollama
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_ollama import OllamaLLM
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.chains import RetrievalQA
+from langchain.chains import RetrievalQA # May be removed if not directly used later
 from langchain.prompts import PromptTemplate
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.messages import BaseMessage
 from src.core.config import settings
 import requests
 import os
@@ -29,7 +30,7 @@ class RAGCAGPipeline:
             raise ConnectionError("Failed to connect to Ollama. Please ensure it's running and the model is pulled.")
 
         # Only initialize LLM here. Embeddings and Vectorstore will be initialized on demand.
-        self.llm = Ollama(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL, temperature=0.1)
+        self.llm = OllamaLLM(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL, temperature=0.1)
 
 
     async def _test_ollama_connection(self):
@@ -81,6 +82,8 @@ class RAGCAGPipeline:
         self._ensure_embeddings_and_vectorstore()
 
         try:
+            # Note: Langchain typically uses a default collection name, often 'langchain'
+            # If you specified a different name, adjust it here.
             collection = self.vectorstore._client.get_or_create_collection(name="langchain")
             if collection.count() > 0:
                 print(f"ChromaDB at {self.chroma_db_path} contains {collection.count()} documents.")
@@ -102,43 +105,47 @@ class RAGCAGPipeline:
         self._ensure_embeddings_and_vectorstore()
 
         documents = []
-        documents = []
         for item in data:
             content = "" # Initialize content as a string
             metadata = {}
 
+            # Explicitly convert all values to strings before embedding in content
             if data_type == "patient_records":
-                # Ensure all parts of content are strings
                 content = (
-                    f"Patient ID: {item.get('id', 'N/A')}\n"
-                    f"Name: {item.get('name', 'N/A')}\n"
-                    f"Age: {item.get('age', 'N/A')}\n"
-                    f"Diagnosis: {item.get('diagnosis', 'N/A')}\n"
-                    f"Medications: {item.get('medications', 'N/A')}\n" # This could be a list/dict
-                    f"History: {item.get('history', 'N/A')}\n"
-                    f"Notes: {item.get('notes', 'N/A')}"
+                    f"Patient ID: {str(item.get('id', 'N/A'))}\n"
+                    f"Name: {str(item.get('name', 'N/A'))}\n"
+                    f"Age: {str(item.get('age', 'N/A'))}\n"
+                    f"Diagnosis: {str(item.get('diagnosis', 'N/A'))}\n"
+                    f"Medications: {str(item.get('medications', 'N/A'))}\n"
+                    f"History: {str(item.get('history', 'N/A'))}\n"
+                    f"Notes: {str(item.get('notes', 'N/A'))}"
                 )
-                metadata = {"source": "patient_records", "id": item.get('id')}
+                metadata = {"source": "patient_records", "id": str(item.get('id', 'N/A'))}
             elif data_type == "treatment_guides":
                 content = (
-                    f"Condition: {item.get('condition', 'N/A')}\n"
-                    f"Guide: {item.get('guide', 'N/A')}"
+                    f"Condition: {str(item.get('condition', 'N/A'))}\n"
+                    f"Guide: {str(item.get('guide', 'N/A'))}"
                 )
-                metadata = {"source": "treatment_guides", "condition": item.get('condition')}
+                metadata = {"source": "treatment_guides", "condition": str(item.get('condition', 'N/A'))}
             elif data_type == "drug_interactions":
                 content = (
-                    f"Drug 1: {item.get('drug1', 'N/A')}\n"
-                    f"Drug 2: {item.get('drug2', 'N/A')}\n"
-                    f"Interaction: {item.get('interaction', 'N/A')}" # This could be a list/dict
+                    f"Drug 1: {str(item.get('drug1', 'N/A'))}\n"
+                    f"Drug 2: {str(item.get('drug2', 'N/A'))}\n"
+                    f"Interaction: {str(item.get('interaction', 'N/A'))}"
                 )
-                metadata = {"source": "drug_interactions", "drug1": item.get('drug1'), "drug2": item.get('drug2')}
+                metadata = {
+                    "source": "drug_interactions",
+                    "drug1": str(item.get('drug1', 'N/A')),
+                    "drug2": str(item.get('drug2', 'N/A'))
+                }
             else:
                 continue # Skip unknown data types
 
-            # Ensure content is always a string before creating Document
+            # The explicit str(content) conversion here is a final safeguard,
+            # but the conversions above are more important for the f-string.
             if not isinstance(content, str):
-                print(f"Warning: Document content for {data_type} is not a string. Converting. Content: {content}")
-                content = str(content) # Force conversion to string
+                print(f"Warning: Final Document content for {data_type} is not a string after initial formatting. Converting. Content: {content}")
+                content = str(content)
 
             documents.append(Document(page_content=content, metadata=metadata))
 
@@ -148,19 +155,16 @@ class RAGCAGPipeline:
 
             print(f"Adding {len(split_documents)} documents from {data_type} to ChromaDB...")
             self.vectorstore.add_documents(split_documents)
-            # No explicit persist() needed for Chroma 0.4.x+ for adding documents
             print(f"Successfully ingested {len(split_documents)} documents for {data_type}.")
         else:
             print(f"No documents to ingest for {data_type}.")
 
     def _setup_qa_chain(self):
         """Sets up the LangChain QA chain for RAG and prepares for CAG."""
-        # Ensure everything needed for the QA chain is initialized and populated
         self._ensure_embeddings_and_vectorstore()
         if not self.llm:
              raise RuntimeError("LLM not initialized when trying to setup QA chain.")
         
-        # This check is crucial: only set up if vectorstore has docs to retrieve from.
         if not self.is_chroma_initialized_and_populated():
             raise RuntimeError("Cannot setup QA chain: Vectorstore is not populated with documents.")
 
@@ -188,6 +192,7 @@ class RAGCAGPipeline:
             {"context": self.retriever, "question": RunnablePassthrough()}
             | PROMPT
             | self.llm
+            | RunnableLambda(lambda x: x.content if isinstance(x, BaseMessage) else str(x)) # <-- MODIFIED LINE
             | StrOutputParser()
         )
         print("QA chain setup complete.")
@@ -206,7 +211,16 @@ class RAGCAGPipeline:
                 # If setup still fails, return an informative message
                 return f"The knowledge base is not yet fully ready for queries: {e}", []
 
+        # It's good practice to ensure self.retriever is ready before invoking
+        if not self.retriever:
+            try:
+                self._setup_qa_chain() # Try to set up if not already
+            except RuntimeError as e:
+                return f"Retrieval component not ready: {e}", []
+
+
         retrieved_docs = self.retriever.invoke(query)
+        # This line is where the error manifests if doc.page_content isn't a string
         context = "\n\n".join([doc.page_content for doc in retrieved_docs])
 
         source_docs_for_frontend = [
