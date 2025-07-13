@@ -51,25 +51,6 @@ graph TD
     O -- "Retrieved Context" --> H
 
     J -- "Processed Data" --> O
-
-    style A fill:#DCE7F0,stroke:#3498db,stroke-width:2px,color:#2c3e50
-    style B fill:#DCE7F0,stroke:#3498db,stroke-width:2px,color:#2c3e50
-    style C fill:#DCE7F0,stroke:#3498db,stroke-width:2px,color:#2c3e50
-
-    style D fill:#E8F8F5,stroke:#2ECC71,stroke-width:2px,color:#2c3e50
-    style E fill:#E8F8F5,stroke:#2ECC71,stroke-width:2px,color:#2c3e50
-    style F fill:#E8F8F5,stroke:#2ECC71,stroke-width:2px,color:#2c3e50
-    style G fill:#E8F8F5,stroke:#2ECC71,stroke-width:2px,color:#2c3e50
-    style H fill:#E8F8F5,stroke:#2ECC71,stroke-width:2px,color:#2c3e50
-    style I fill:#E8F8F5,stroke:#2ECC71,stroke-width:2px,color:#2c3e50
-    style J fill:#E8F8F5,stroke:#2ECC71,stroke-width:2px,color:#2c3e50
-
-    style K fill:#F5EEF8,stroke:#9B59B6,stroke-width:2px,color:#2c3e50
-
-    style L fill:#FCF3CF,stroke:#F1C40F,stroke-width:2px,color:#2c3e50
-    style M fill:#FCF3CF,stroke:#F1C40F,stroke-width:2px,color:#2c3e50
-    style N fill:#FCF3CF,stroke:#F1C40F,stroke-width:2px,color:#2c3e50
-    style O fill:#FCF3CF,stroke:#F1C40F,stroke-width:2px,color:#2c3e50
 ```
 
 ## Features
