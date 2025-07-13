@@ -4,5 +4,17 @@
     {"drug1": "Aspirin", "drug2": "Warfarin", "interaction": "Increased risk of bleeding. Both are anticoagulants; concurrent use requires careful monitoring of INR and clinical signs of bleeding."},
     {"drug1": "Sumatriptan", "drug2": "SSRIs/SNRIs", "interaction": "Risk of serotonin syndrome. Monitor for symptoms such as agitation, hallucinations, tachycardia, rapid blood pressure changes, hyperthermia, incoordination, nausea, vomiting, or diarrhea. Use with caution."},
     {"drug1": "Naproxen", "drug2": "Lithium", "interaction": "NSAIDs like Naproxen can increase lithium levels, leading to toxicity. Monitor lithium levels closely."},
-    {"drug1": "Escitalopram", "drug2": "MAOIs", "interaction": "Contraindicated. Risk of serious, sometimes fatal, serotonin syndrome. A washout period is required when switching between these medications."}
+    {"drug1": "Escitalopram", "drug2": "MAOIs", "interaction": "Contraindicated. Risk of serious, sometimes fatal, serotonin syndrome. A washout period is required when switching between these medications."},
+    {"drug1": "Digoxin", "drug2": "Amiodarone", "interaction": "Increased digoxin levels, leading to toxicity. Reduce digoxin dose by 50% when initiating amiodarone and monitor digoxin levels closely."},
+    {"drug1": "Warfarin", "drug2": "Amiodarone", "interaction": "Significantly increased anticoagulant effect of warfarin, increasing bleeding risk. Reduce warfarin dose by 30-50% and monitor INR frequently when initiating amiodarone."},
+    {"drug1": "Simvastatin", "drug2": "Clarithromycin", "interaction": "Increased risk of statin-induced myopathy/rhabdomyolysis due to inhibition of CYP3A4. Avoid concurrent use or use alternative statin not metabolized by CYP3A4."},
+    {"drug1": "Phenytoin", "drug2": "Oral Contraceptives", "interaction": "Decreased efficacy of oral contraceptives due to enzyme induction. Advise use of alternative non-hormonal contraception."},
+    {"drug1": "Spironolactone", "drug2": "ACE Inhibitors", "interaction": "Increased risk of severe hyperkalemia. Close monitoring of potassium levels is essential, especially in patients with impaired renal function."},
+    {"drug1": "Sildenafil", "drug2": "Nitrates", "interaction": "Potentiation of hypotensive effects, leading to severe and potentially fatal hypotension. Concomitant use is contraindicated."},
+    {"drug1": "Levothyroxine", "drug2": "Calcium Carbonate", "interaction": "Reduced absorption of levothyroxine. Separate administration by at least 4 hours."},
+    {"drug1": "Methotrexate", "drug2": "NSAIDs", "interaction": "Increased methotrexate levels, leading to toxicity (e.g., bone marrow suppression). Use with extreme caution and monitor for signs of toxicity."},
+    {"drug1": "Insulin", "drug2": "Beta-blockers", "interaction": "Masking of hypoglycemia symptoms (e.g., tremors, palpitations) and potential for prolonged hypoglycemia. Patients should be warned about this interaction and taught to recognize other signs of hypoglycemia."},
+    {"drug1": "Citalopram", "drug2": "QT Prolonging Drugs", "interaction": "Increased risk of QT interval prolongation and Torsade de Pointes. Avoid co-administration with other drugs known to prolong the QT interval."},
+    {"drug1": "Rifampin", "drug2": "Warfarin", "interaction": "Decreased anticoagulant effect of warfarin due to enzyme induction. Requires significant increase in warfarin dose and frequent INR monitoring."},
+    {"drug1": "Fluoxetine", "drug2": "Triptans", "interaction": "Increased risk of serotonin syndrome. Monitor patients for symptoms if co-administered."}
 ]
