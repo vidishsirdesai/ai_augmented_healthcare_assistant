@@ -1,0 +1,8 @@
+[
+    {"drug1": "Metformin", "drug2": "Iodinated Contrast Media", "interaction": "Risk of lactic acidosis. Metformin should be temporarily discontinued before and 48 hours after administration of iodinated contrast media in patients with risk factors for lactic acidosis (e.g., renal impairment)."},
+    {"drug1": "Lisinopril", "drug2": "Potassium Supplements", "interaction": "Increased risk of hyperkalemia. Concurrent use requires close monitoring of serum potassium levels, especially in patients with renal impairment or those also on potassium-sparing diuretics."},
+    {"drug1": "Aspirin", "drug2": "Warfarin", "interaction": "Increased risk of bleeding. Both are anticoagulants; concurrent use requires careful monitoring of INR and clinical signs of bleeding."},
+    {"drug1": "Sumatriptan", "drug2": "SSRIs/SNRIs", "interaction": "Risk of serotonin syndrome. Monitor for symptoms such as agitation, hallucinations, tachycardia, rapid blood pressure changes, hyperthermia, incoordination, nausea, vomiting, or diarrhea. Use with caution."},
+    {"drug1": "Naproxen", "drug2": "Lithium", "interaction": "NSAIDs like Naproxen can increase lithium levels, leading to toxicity. Monitor lithium levels closely."},
+    {"drug1": "Escitalopram", "drug2": "MAOIs", "interaction": "Contraindicated. Risk of serious, sometimes fatal, serotonin syndrome. A washout period is required when switching between these medications."}
+]
