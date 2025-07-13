@@ -29,7 +29,6 @@ class RAGCAGPipeline:
         if not self.ollama_connected:
             raise ConnectionError("Failed to connect to Ollama. Please ensure it's running and the model is pulled.")
 
-        # Only initialize LLM here. Embeddings and Vectorstore will be initialized on demand.
         self.llm = OllamaLLM(base_url=settings.OLLAMA_BASE_URL, model=settings.OLLAMA_MODEL, temperature=0.1)
 
 
@@ -78,12 +77,9 @@ class RAGCAGPipeline:
 
     def is_chroma_initialized_and_populated(self) -> bool:
         """Checks if ChromaDB client is initialized and contains documents."""
-        # Ensure client is initialized before checking population
         self._ensure_embeddings_and_vectorstore()
 
         try:
-            # Note: Langchain typically uses a default collection name, often 'langchain'
-            # If you specified a different name, adjust it here.
             collection = self.vectorstore._client.get_or_create_collection(name="langchain")
             if collection.count() > 0:
                 print(f"ChromaDB at {self.chroma_db_path} contains {collection.count()} documents.")
@@ -101,15 +97,13 @@ class RAGCAGPipeline:
         Ingests data into ChromaDB.
         Assumes data is a list of dicts, and each dict will be converted to a Document.
         """
-        # Ensure embeddings and vectorstore are ready before proceeding
         self._ensure_embeddings_and_vectorstore()
 
         documents = []
         for item in data:
-            content = "" # Initialize content as a string
+            content = ""
             metadata = {}
 
-            # Explicitly convert all values to strings before embedding in content
             if data_type == "patient_records":
                 content = (
                     f"Patient ID: {str(item.get('id', 'N/A'))}\n"
@@ -139,10 +133,8 @@ class RAGCAGPipeline:
                     "drug2": str(item.get('drug2', 'N/A'))
                 }
             else:
-                continue # Skip unknown data types
+                continue
 
-            # The explicit str(content) conversion here is a final safeguard,
-            # but the conversions above are more important for the f-string.
             if not isinstance(content, str):
                 print(f"Warning: Final Document content for {data_type} is not a string after initial formatting. Converting. Content: {content}")
                 content = str(content)
@@ -163,8 +155,8 @@ class RAGCAGPipeline:
         """Sets up the LangChain QA chain for RAG and prepares for CAG."""
         self._ensure_embeddings_and_vectorstore()
         if not self.llm:
-             raise RuntimeError("LLM not initialized when trying to setup QA chain.")
-        
+            raise RuntimeError("LLM not initialized when trying to setup QA chain.")
+           
         if not self.is_chroma_initialized_and_populated():
             raise RuntimeError("Cannot setup QA chain: Vectorstore is not populated with documents.")
 
@@ -188,11 +180,17 @@ class RAGCAGPipeline:
             template=prompt_template, input_variables=["context", "question"]
         )
 
+        # FIX: Explicitly define the chain to accept 'question' and retrieve context
+        # This structure ensures that the prompt receives a dict with 'context' and 'question' strings.
         self.qa_chain = (
-            {"context": self.retriever, "question": RunnablePassthrough()}
+            # Step 1: Accept the raw 'question' string input.
+            # Step 2: Use RunnablePassthrough.assign to create the 'context' and pass 'question' through.
+            {
+                "context": self.retriever | (lambda docs: "\n\n".join([str(doc.page_content) for doc in docs])),
+                "question": RunnablePassthrough()
+            }
             | PROMPT
             | self.llm
-            | RunnableLambda(lambda x: x.content if isinstance(x, BaseMessage) else str(x)) # <-- MODIFIED LINE
             | StrOutputParser()
         )
         print("QA chain setup complete.")
@@ -202,32 +200,29 @@ class RAGCAGPipeline:
         Processes a natural language query using the RAG/CAG pipeline.
         Returns the generated response and the source documents.
         """
-        # Ensure QA chain is set up before processing queries
         if not self.qa_chain:
-            # If QA chain is not set up, try to set it up now
             try:
                 self._setup_qa_chain()
             except RuntimeError as e:
-                # If setup still fails, return an informative message
                 return f"The knowledge base is not yet fully ready for queries: {e}", []
 
-        # It's good practice to ensure self.retriever is ready before invoking
+        # It's good practice to ensure self.retriever is ready before invoking for source docs
         if not self.retriever:
             try:
                 self._setup_qa_chain() # Try to set up if not already
             except RuntimeError as e:
                 return f"Retrieval component not ready: {e}", []
 
-
+        # Perform retrieval *separately* if you want to explicitly get source_docs_for_frontend
         retrieved_docs = self.retriever.invoke(query)
-        # This line is where the error manifests if doc.page_content isn't a string
-        context = "\n\n".join([doc.page_content for doc in retrieved_docs])
-
+        
         source_docs_for_frontend = [
-            {"content": doc.page_content, "metadata": doc.metadata}
+            {"content": str(doc.page_content), "metadata": doc.metadata} 
             for doc in retrieved_docs
         ]
 
-        response = self.qa_chain.invoke({"context": context, "question": query})
+        # The qa_chain now expects a dictionary with both 'question' and 'context' (or just 'question' for retrieval).
+        # We pass only the 'question' key, and the chain itself handles the retrieval for 'context'.
+        response = self.qa_chain.invoke(query) # Pass the raw query string as input
 
         return response, source_docs_for_frontend
