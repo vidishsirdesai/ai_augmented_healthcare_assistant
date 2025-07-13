@@ -1,8 +1,11 @@
 # AI Augmented Healthcare Assistant
+## Features
+- 
+
 ## Architecture
 ```mermaid
 graph TD
-    subgraph User Interface
+    subgraph UI
         A[index.html]
         B(style.css)
         C(script.js)
