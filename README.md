@@ -3,35 +3,51 @@
 ```mermaid
 graph TD
     subgraph User Interface (Browser)
-        A[index.html] -- Renders UI --> B(style.css)
-        A -- Handles Interaction & API Calls --> C(script.js)
+        A[index.html]
+        B(style.css)
+        C(script.js)
+        A -- Renders UI --> B
+        A -- Handles Interaction & API Calls --> C
     end
 
     subgraph Backend (FastAPI Application)
-        D[main.py] -- Initializes --> E(APIRouter)
-        E -- Defines /chat endpoint --> F[endpoints.py]
-        F -- Validates Input/Output --> G[models.py]
-        G -- Uses LLM & RAG/CAG Pipeline --> H[rag_cag_pipeline.py]
-        H -- Loads Configuration --> I[config.py]
-        H -- Loads Raw Data --> J[data_loader.py]
+        D[main.py]
+        E(APIRouter)
+        F[endpoints.py]
+        G[models.py]
+        H[rag_cag_pipeline.py]
+        I[config.py]
+        J[data_loader.py]
+
+        D -- Initializes --> E
+        E -- Defines /chat endpoint --> F
+        F -- Validates Input/Output --> G
+        G -- Uses LLM & RAG/CAG Pipeline --> H
+        H -- Loads Configuration --> I
+        H -- Loads Raw Data --> J
     end
 
     subgraph External Services
-        K[Ollama Server] -- Provides LLM --> H
+        K[Ollama Server]
+        K -- Provides LLM --> H
     end
 
     subgraph Data Stores
-        J -- Reads --> L[data/patient_records.json]
-        J -- Reads --> M[data/treatment_guides.json]
-        J -- Reads --> N[data/drug_interactions.json]
-        H -- Ingests & Retrieves Embeddings --> O[ChromaDB (Vector Store)]
+        L[data/patient_records.json]
+        M[data/treatment_guides.json]
+        N[data/drug_interactions.json]
+        O[ChromaDB (Vector Store)]
+
+        J -- Reads --> L
+        J -- Reads --> M
+        J -- Reads --> N
+        H -- Ingests & Retrieves Embeddings --> O
     end
 
     C -- "POST /chat Query" --> F
     F -- "Response + Sources" --> C
 
     H -- "LLM Inference Requests" --> K
-    H -- "Embeddings Lookup & Storage" --> O
     O -- "Retrieved Context" --> H
 
     J -- "Processed Data" --> O
