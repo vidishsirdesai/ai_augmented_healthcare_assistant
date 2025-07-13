@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Healthcare Assistant</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <h2>Source Documents</h2>
+            <div id="source-documents" class="source-documents-container">
+                <p>Relevant information from patient records, treatment guides, and drug interactions will appear here.</p>
+            </div>
+        </div>
+        <div class="right-panel">
+            <h1>AI Healthcare Assistant Chat</h1>
+            <div id="chat-box" class="chat-box">
+                <div class="message bot-message">
+                    Hello! I'm your AI Healthcare Assistant. How can I help you today?
+                </div>
+            </div>
+            <form id="chat-form" class="chat-input-form">
+                <input type="text" id="user-input" placeholder="Ask a medical question..." required>
+                <button type="submit">Send</button>
+            </form>
+            <div id="status-message" class="status-message"></div>
+        </div>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>
