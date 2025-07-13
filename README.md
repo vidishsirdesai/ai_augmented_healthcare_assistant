@@ -2,7 +2,7 @@
 ## Architecture
 ```mermaid
 graph TD
-    subgraph UI
+    subgraph User Interface
         A[index.html]
         B(style.css)
         C(script.js)
@@ -18,6 +18,7 @@ graph TD
         H[rag_cag_pipeline.py]
         I[config.py]
         J[data_loader.py]
+        P{LRU Cache}
 
         D -- Initializes --> E
         E -- Defines /chat endpoint --> F
@@ -25,6 +26,11 @@ graph TD
         G -- Uses LLM & RAG/CAG Pipeline --> H
         H -- Loads Configuration --> I
         H -- Loads Raw Data --> J
+
+        H -- Checks/Stores --> P
+        P -- Serves Cached Response --> H
+        J -- "Data Ingested" --> H
+        H -- "Cache Clear" --> P
     end
 
     subgraph External Services
@@ -36,7 +42,7 @@ graph TD
         L[data/patient_records.json]
         M[data/treatment_guides.json]
         N[data/drug_interactions.json]
-        O[Vector Store]
+        O[ChromaDB Vector Store]
 
         J -- Reads --> L
         J -- Reads --> M
@@ -54,7 +60,9 @@ graph TD
 ```
 
 ## Features
--
+### Core Features
+- Retrieval-Augmented Generation (RAG) Pipeline: The application uses a RAG pipeline to generate informed responses by first retrieving relevant information from its knowledge base and then using an LLM to formulate an answer based on that context.
+- 
 
 ## Column Profiles
 ### `drug_interactions.json`
