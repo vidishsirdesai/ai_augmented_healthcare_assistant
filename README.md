@@ -2,7 +2,7 @@
 ## Architecture
 ```mermaid
 graph TD
-    subgraph User Interface (Browser)
+    subgraph User Interface
         A[index.html]
         B(style.css)
         C(script.js)
@@ -10,7 +10,7 @@ graph TD
         A -- Handles Interaction & API Calls --> C
     end
 
-    subgraph Backend (FastAPI Application)
+    subgraph Backend
         D[main.py]
         E(APIRouter)
         F[endpoints.py]
@@ -36,7 +36,7 @@ graph TD
         L[data/patient_records.json]
         M[data/treatment_guides.json]
         N[data/drug_interactions.json]
-        O[ChromaDB (Vector Store)]
+        O[Vector Store]
 
         J -- Reads --> L
         J -- Reads --> M
