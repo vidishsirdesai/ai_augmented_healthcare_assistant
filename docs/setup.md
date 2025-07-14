@@ -1,5 +1,5 @@
 # Setup
-- `brew install pyenv`.
+- `brew install pyenv # for macOS`.
 - `pyenv --version`.
 - `pyenv install --list`.
 - `pyenv versions`.
