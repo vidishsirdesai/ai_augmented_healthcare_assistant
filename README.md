@@ -23,7 +23,7 @@ graph TD
         D -- Initializes --> E
         E -- Defines /chat endpoint --> F
         F -- Validates Input/Output --> G
-        G -- Uses LLM & RAG/CAG Pipeline --> H
+        G -- Uses LLM & RAG-CAG Pipeline --> H
         H -- Loads Configuration --> I
         H -- Loads Raw Data --> J
 
