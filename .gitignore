@@ -208,3 +208,8 @@ __marimo__/
 
 .DS_Store
 chroma_db
+
+# Apple Productivity
+*.pages
+*.numbers
+*.key
