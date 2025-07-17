@@ -1,0 +1,5 @@
+- Patient Information & Treatment: "What is the diagnosis for patient P001, and what are the general treatment guidelines for their condition?".
+- Drug Interactions: "Are there any known drug interactions between Metformin and Iodinated Contrast Media? Please explain the interaction.".
+- Specific Patient Query: "Tell me about patient P002's medical history and current medications. What are their recent lab results?".
+- Treatment for a Condition: "Can you outline the management strategies for a patient diagnosed with Rheumatoid Arthritis?".
+- Medication Details for a Patient: "What medications is patient P005 currently taking, and what condition are they for?".
