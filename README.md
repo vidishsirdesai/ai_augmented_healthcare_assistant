@@ -63,8 +63,10 @@ graph TD
 ### Core AI & Backend
 - Retrieval Augmented Generation (RAG): Integrates an LLM with a knowledge base to generate informed responses.
 - Content Augmented Generation (CAG): Utilizes an LRU cache to store and serve previous responses, augmenting the generation process by providing faster retrieval for repeated queries.
-- Ollama LLM Integration: Utilizes a locally or self-hosted LLM (mistral) for natural language understanding and generation.
+- Ollama LLM Integration: Utilizes a locally or self-hosted LLM for natural language understanding and generation.
+	- `mistral` is the LLM used.
 - HuggingFace Embeddings: Transforms textual data into vector embeddings, serving as the application's searchable knowledge base.
+	- `sentence-transformers/all-MiniLM-L6-v2` is the embedding model used.
 - Intelligent Data Ingestion: Automatically loads and processes raw JSON data (patient records, treatment guides, drug interactions) into the ChromaDB upon startup, only, if the database is not already populated.
 - Structured Data Handling: Specifically processes and stores patient records, comprehensive treatment guides, and detailed drug interaction information.
 - API Endpoint (`/chat`): Provides a RESTful interface for external applications (like your frontend) to send natural language queries.
